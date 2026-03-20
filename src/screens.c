@@ -352,12 +352,14 @@ void create_screen_devices() {
             lv_obj_set_style_border_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
         }
         {
+            // list_serial_number
             lv_obj_t *obj = lv_dropdown_create(parent_obj);
-            objects.obj4 = obj;
+            objects.list_serial_number = obj;
             lv_obj_set_pos(obj, 121, 55);
             lv_obj_set_size(obj, 186, LV_SIZE_CONTENT);
             lv_dropdown_set_options(obj, "HG-W1\nHG-D1\nHG-W2\nHG-D2\nHG-W3\nHG-D3\nHG-W4\nHG-D4\n");
             lv_dropdown_set_selected(obj, 0);
+            lv_obj_add_event_cb(obj, action_on_id_selected, LV_EVENT_VALUE_CHANGED, (void *)0);
             lv_obj_set_style_border_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
         }
     }
@@ -377,7 +379,7 @@ void create_screen_monitoring() {
         lv_obj_t *parent_obj = obj;
         {
             lv_obj_t *obj = lv_obj_create(parent_obj);
-            objects.obj5 = obj;
+            objects.obj4 = obj;
             lv_obj_set_pos(obj, 0, 0);
             lv_obj_set_size(obj, 320, 33);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00878f), LV_PART_MAIN | LV_STATE_DEFAULT);

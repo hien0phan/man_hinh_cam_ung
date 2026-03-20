@@ -31,8 +31,8 @@ typedef struct _objects_t {
     lv_obj_t *back_button_devices;
     lv_obj_t *control_button_devices;
     lv_obj_t *mqtt_status_text;
+    lv_obj_t *list_serial_number;
     lv_obj_t *obj4;
-    lv_obj_t *obj5;
     lv_obj_t *text_serial_number_control;
     lv_obj_t *text_status_control;
     lv_obj_t *back_button_control;

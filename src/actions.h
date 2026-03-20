@@ -7,6 +7,7 @@
 extern "C" {
 #endif
 
+extern void action_on_id_selected(lv_event_t * e);
 
 
 #ifdef __cplusplus

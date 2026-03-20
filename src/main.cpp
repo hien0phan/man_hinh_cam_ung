@@ -69,6 +69,17 @@ extern "C" {
     }
 }
 
+const char* machine_serials[] = {
+    "TEWD43824IS5",  
+    "TEWD43136US5", 
+    "TEWD43888E0V",  
+    "TEWD439047DO",
+    "TEWD439521PK",
+    "TEWD43792MCY",
+    "TEWD43936POL",
+    "TEWD43248HKB"
+};
+
 extern "C" {
     void action_connect_wifi(lv_event_t * e) {
         lv_event_code_t code = lv_event_get_code(e);
@@ -143,31 +154,27 @@ void go_back_cb(lv_event_t * e) {
 }
 
 void update_clock_ui() {
-    // Chỉ cập nhật nếu đang ở màn hình Main để tránh lỗi tràn bộ nhớ (DRAM)
     if (lv_scr_act() != objects.main_screen) return;
 
+    time_t now;
     struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        // Nếu chưa lấy được giờ, hiển thị trạng thái chờ
-        if(objects.time_main_label) lv_label_set_text(objects.time_main_label, "--:--");
+    time(&now);
+    localtime_r(&now, &timeinfo);
+
+    // Kiểm tra xem năm có lớn hơn 2000 không (để biết đã đồng bộ NTP thành công chưa)
+    if (timeinfo.tm_year < 100) {
+        if(objects.time_main_label) lv_label_set_text(objects.time_main_label, "Syncing...");
         return;
     }
 
-    // 1. Cập nhật GIỜ (Ví dụ: 14:30)
     char buf_time[9];
     strftime(buf_time, sizeof(buf_time), "%H:%M", &timeinfo);
-    if(objects.time_main_label) {
-        lv_label_set_text(objects.time_main_label, buf_time);
-    }
+    if(objects.time_main_label) lv_label_set_text(objects.time_main_label, buf_time);
 
-    // 2. Cập nhật NGÀY (Ví dụ: 09/03/2026)
     char buf_date[20];
     strftime(buf_date, sizeof(buf_date), "%d/%m/%Y", &timeinfo);
-    if(objects.date_main_label) {
-        lv_label_set_text(objects.date_main_label, buf_date);
-    }
+    if(objects.date_main_label) lv_label_set_text(objects.date_main_label, buf_date);
 }
-
 int last_s_value = -1; // Biến toàn cục lưu trạng thái cũ
 
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
@@ -214,32 +221,52 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         Serial.println("Warning: Received JSON without key 's'");
     }
 }
-// void ui_event_btn_connect(lv_event_t * e) {
-//     if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
-//         const char * input_sn = lv_textarea_get_text(objects.text_serial_number_devices);
-//         if (strlen(input_sn) == 0) return;
 
-//         g_sn = String(input_sn);
+void ui_event_btn_connect(lv_event_t * e) {
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
         
-//         // Cấu hình MQTT
-//         client.setServer("devices.koisolutions.vn", 7183);
-//         client.setCallback(mqtt_callback);
+        // 1. Lấy vị trí (Index) đang được chọn từ Dropdown
+        // Giả sử tên Dropdown của bạn trong EEZ Studio là 'dropdown_devices'
+        uint16_t selected_index = lv_dropdown_get_selected(objects.list_serial_number);
+        
+        // 2. Lấy Serial Number tương ứng từ mảng
+        const char* selected_sn = machine_serials[selected_index];
+        g_sn = String(selected_sn); // Lưu vào biến toàn cục g_sn
 
-//         String clientId = "ESP32-Client-" + String(random(0, 1000));
-//         if (client.connect(clientId.c_str())) {
-//             String topic = "Kdev/" + g_sn + "/info";
-//             client.subscribe(topic.c_str());
+        // 3. Cấu hình MQTT
+        client.setServer("devices.koisolutions.vn", 7183);
+        client.setCallback(mqtt_callback);
+
+        String clientId = "ESP32-Client-" + String(random(0, 1000));
+        
+        if (client.connect(clientId.c_str())) {
+            // Subscribe theo Serial Number đã chọn
+            String topic = "Kdev/" + g_sn + "/info";
+            client.subscribe(topic.c_str());
             
-//             if(objects.mqtt_status_text) {
-//                 lv_textarea_set_text(objects.mqtt_status_text, "Connected & Waiting...");
-//             }
-//         } else {
-//             if(objects.mqtt_status_text) {
-//                 lv_textarea_set_text(objects.mqtt_status_text, "Connect Failed!");
-//             }
-//         }
-//     }
-// }
+            // Cập nhật trạng thái lên màn hình
+            if(objects.mqtt_status_text) {
+                String statusMsg = "Connected to: " + g_sn;
+                lv_textarea_set_text(objects.mqtt_status_text, statusMsg.c_str());
+            }
+            
+            Serial.println("MQTT Connected with SN: " + g_sn);
+        } else {
+            if(objects.mqtt_status_text) {
+                lv_textarea_set_text(objects.mqtt_status_text, "Connect Failed!");
+            }
+            Serial.println("MQTT Connection Failed!");
+        }
+    }
+}
+
+extern "C" {
+    void action_on_id_selected(lv_event_t * e) {
+        // Hàm này có thể để trống nếu bạn đã dồn logic vào nút Connect
+        // Nhưng PHẢI CÓ để trình biên dịch không báo lỗi.
+        Serial.println("Dropdown value changed!");
+    }
+}
 
 void ui_event_btn_control(lv_event_t * e) {
     if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
@@ -355,9 +382,9 @@ void setup() {
         lv_obj_add_event_cb(objects.button_main_control, my_next_to_monitor_cb, LV_EVENT_CLICKED, NULL);
     }
 
-    // if(objects.connect_button_devices) {
-    //     lv_obj_add_event_cb(objects.connect_button_devices, ui_event_btn_connect, LV_EVENT_CLICKED, NULL);
-    // }
+    if(objects.connect_button_devices) {
+        lv_obj_add_event_cb(objects.connect_button_devices, ui_event_btn_connect, LV_EVENT_CLICKED, NULL);
+    }
 
     if(objects.control_button_devices) {
         lv_obj_add_event_cb(objects.control_button_devices, ui_event_btn_control, LV_EVENT_CLICKED, NULL);
@@ -379,35 +406,47 @@ void setup() {
 unsigned long last_check_time = 0;
 unsigned long last_clock_tick = 0; // Khai báo biến lưu thời gian đếm
 
+bool ntp_configured = false; // Biến cờ kiểm tra
+
 void loop() {
     lv_timer_handler();
-    delay(5);
-
+    // Giảm delay xuống 1ms hoặc bỏ qua để UI mượt nhất
+    
+    // 1. Cập nhật đồng hồ mỗi giây
     if (millis() - last_clock_tick > 1000) {
         update_clock_ui();
         last_clock_tick = millis();
     }
-    // Duy trì MQTT
+
+    // 2. Duy trì kết nối MQTT chỉ khi đã kết nối và có WiFi
     if (WiFi.status() == WL_CONNECTED) {
-        client.loop();
-    }
-    // Cứ mỗi 500ms kiểm tra trạng thái WiFi một lần
-    if (millis() - last_check_time > 500) {
-        last_check_time = millis();
+        if (client.connected()) {
+            client.loop();
+        }
         
+        // Cấu hình NTP 1 lần duy nhất sau khi có mạng
+        if (!ntp_configured) {
+            configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+            ntp_configured = true;
+            Serial.println("NTP Configured");
+        }
+    }
+
+    // 3. Kiểm tra WiFi (giữ nguyên logic của bạn nhưng tối ưu hiển thị)
+    if (millis() - last_check_time > 1000) { // Tăng lên 1s để đỡ chiếm dụng tài nguyên
+        last_check_time = millis();
         if (WiFi.status() == WL_CONNECTED) {
-            if (!is_wifi_connected) { // Chỉ cập nhật khi trạng thái thay đổi
+            if (!is_wifi_connected) {
                 lv_textarea_set_text(objects.wifi_status_text, "Connected");
-                // Có thể đổi màu chữ sang xanh nếu muốn
                 lv_obj_set_style_text_color(objects.wifi_status_text, lv_palette_main(LV_PALETTE_GREEN), 0);
                 is_wifi_connected = true;
-                Serial.println("WiFi Connected!");
             }
         } else {
             if (is_wifi_connected) {
-                lv_textarea_set_text(objects.wifi_status_text, "Not connected");
+                lv_textarea_set_text(objects.wifi_status_text, "Disconnected");
                 lv_obj_set_style_text_color(objects.wifi_status_text, lv_palette_main(LV_PALETTE_RED), 0);
                 is_wifi_connected = false;
+                ntp_configured = false; // Reset để sync lại khi có mạng lại
             }
         }
     }
