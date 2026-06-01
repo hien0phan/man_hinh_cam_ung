@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+extern void action_ui_btn_wifi_clicked(lv_event_t * e);
+extern void action_ui_btn_minitor_clicked(lv_event_t * e);
 
 
 #ifdef __cplusplus

@@ -9,7 +9,7 @@
 
 // 2. Cấu hình màu sắc (ILI9341 dùng 16 bit)
 #define LV_COLOR_DEPTH 16
-#define LV_COLOR_16_SWAP 1 // Đảo byte màu (quan trọng với TFT_eSPI)
+#define LV_COLOR_16_SWAP 0 // Đảo byte màu (quan trọng với TFT_eSPI)
 
 // 3. Bộ nhớ (ESP32 có RAM lớn, cho phép dùng 48KB cho LVGL)
 #define LV_MEM_CUSTOM 0
